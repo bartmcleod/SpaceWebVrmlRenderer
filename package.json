@@ -1,0 +1,21 @@
+{
+  "name": "spacewebvrmlrenderer",
+  "version": "0.1.0",
+  "description": "A package that servers as an example on how to host wrl files that can be rendered in the browser without using a plugin.",
+  "author": "Bart McLeod <mcleod@spaceweb.nl>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bartmcleod/SpaceWebVrmlRenderer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bartmcleod/SpaceWebVrmlRenderer/issues"
+  },
+  "keywords": [
+    "vrml"
+  ],
+  "dependencies": {
+    "vrmlparser": "*",
+    "fs": "0.0.2"
+  }
+
+}
