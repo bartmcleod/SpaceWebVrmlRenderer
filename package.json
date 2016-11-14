@@ -14,7 +14,7 @@
     "vrml"
   ],
   "dependencies": {
-    "vrmlparser": "*",
+    "vrmlparser": "bartmcleod/VrmlParser",
     "fs": "0.0.2"
   }
 
