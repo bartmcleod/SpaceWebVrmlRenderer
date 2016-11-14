@@ -29,6 +29,21 @@
             text-decoration: underline;
             cursor: pointer
         }
+
+        #viewpoints {
+            background-color: gray;
+            z-index: 101;
+            position: absolute;
+            width: 140px;
+            top: 10px;
+            left: 10px;
+            padding: 2px;
+            border: 1px solid white;
+        }
+
+        #viewpoints div {
+            width: inherit;
+        }
     </style>
 
 </head>
@@ -37,6 +52,9 @@
 <div id="info">
     <a href="http://threejs.org" target="_blank">three.js / VrmlParser</a> -
     vrml format loader test using VrmlParser -
+</div>
+<div id="viewpoints">
+    <h4>Viewpoints from the VRML file</h4>
 </div>
 
 <script src="node_modules/three/build/three.js"></script>
@@ -47,11 +65,15 @@
 <script src="node_modules/vrmlparser/Renderer/ThreeJs/Animation.js"></script>
 <script src="node_modules/vrmlparser/Renderer/ThreeJs/Animation/OrientationInterpolator.js"></script>
 <script src="node_modules/vrmlparser/Renderer/ThreeJs/Animation/PositionInterpolator.js"></script>
+<script src="node_modules/vrmlparser/Renderer/ThreeJs/VrmlNode/Viewpoint.js"></script>
+<script src="node_modules/vrmlparser/Renderer/ThreeJs/VrmlNode/NavigationInfo.js"></script>
 
 <script src="node_modules/three/examples/js/renderers/Projector.js"></script>
 <script src="node_modules/three/examples/js/controls/OrbitControls.js"></script>
+<script src="node_modules/three/examples/js/controls/FlyControls.js"></script>
 <script src="node_modules/three/examples/js/controls/FirstPersonControls.js"></script>
 <script src="node_modules/three/examples/js/controls/TrackballControls.js"></script>
+<script src="node_modules/tween.js/src/Tween.js"></script>
 
 <script type="x-shader/x-vertex" id="vertexShader">
 
@@ -93,7 +115,7 @@
 
     var container;
 
-    var camera, controls, scene, renderer;
+    var camera, controls, scene, renderer, dirLight;
 
     var animation;
 
@@ -103,10 +125,37 @@
     init();
     animate();
 
+    function resetControls() {
+        controls.object = camera;
+
+        if ('function' === typeof controls.reset) {
+            controls.target.copy(camera.position);
+            controls.reset();
+        }
+    }
+
+    function setupLight() {
+        camera.add(dirLight);
+        camera.add(dirLight.target);
+    }
+
     function init() {
 
         camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 1e10);
-        camera.position.z = 8;
+        camera.position.z = 6;
+        camera.position.y = 3;
+        camera.position.x = 0;
+
+        // setup controls (@todo: find a way to not need these
+        if (!controls) {
+            controls = new THREE.OrbitControls(camera);
+            controls.rotateSpeed = 1;
+            controls.zoomSpeed = 0.2;
+            controls.panSpeed = 0.2;
+
+            controls.enableZoom = true;
+            controls.enablePan = true;
+        }
 
         scene = new THREE.Scene();
 
@@ -115,30 +164,15 @@
 
         scene.add(camera);
 
-        // setup controls
-        controls = new THREE.OrbitControls(camera);
-        controls.rotateSpeed = 1;
-        controls.zoomSpeed = 0.2;
-        controls.panSpeed = 0.2;
-
-        controls.enableZoom = true;
-        controls.enablePan = true;
-
-        // light
-
-        var dirLight = new THREE.DirectionalLight(0xffffff);
+        dirLight = new THREE.DirectionalLight(0xaaaaaa);
         dirLight.position.set(500, 500, 500).normalize();
         dirLight.castShadow = false;
 
-//        var ambientLight = new THREE.AmbientLight(0x444444);
-
-        camera.add(dirLight);
-//        scene.add(ambientLight);
-        camera.add(dirLight.target);
+        setupLight();
 
         var debug = true;
         var vrmlConverter = new VrmlParser.Renderer.ThreeJs(debug);
-        // node_modules/vrmlparser/Renderer
+        // renderer
 
         renderer = new THREE.WebGLRenderer({antialias: true});
         renderer.shadowMap.enabled = true;
@@ -148,6 +182,15 @@
         // add support for animation and interaction
         animation = new VrmlParser.Renderer.ThreeJs.Animation(scene, camera, renderer, debug);
         animation.addClickSupport();
+
+        // initialize the viewpoinst with the camera from the global scope
+        vrmlConverter.viewpoints = {
+            reset: {
+                getCamera: function () {
+                    return this.camera;
+                }, name: 'surrounding_reset', camera: camera
+            }
+        }; // key value store of cameras based on VRML viewpoint nodes, stored by their name.
 
         // VRML parser example:
         var xhrLoader = new THREE.XHRLoader();
@@ -168,6 +211,26 @@
             console.log(tree);
 
             vrmlConverter.render(tree, scene);
+
+            // @todo: move viewpointSelector to its own class
+            var viewpointSelector = document.getElementById('viewpoints');
+
+            var selectViewpoint = function (event) {
+                var viewpoint = event.target.dataset.name;
+                console.log('clicked ' + viewpoint);
+                camera = vrmlConverter.viewpoints[viewpoint].getCamera();
+                resetControls();
+            };
+
+            for ( a in vrmlConverter.viewpoints ) {
+                if ( typeof a === 'string' ) {
+                    var option = document.createElement('div');
+                    option.innerHTML = a;
+                    option.setAttribute('data-name', a);
+                    viewpointSelector.appendChild(option);
+                    option.addEventListener('click', selectViewpoint);
+                }
+            }
 
         }, function () {
         }, function (error) {
@@ -201,7 +264,9 @@
 
     function animate() {
         requestAnimationFrame(animate);
-        controls.update(clock.getDelta());
+        if (undefined !== controls) {
+            controls.update(clock.getDelta());
+        }
         animation.update(clock.getDelta());
         renderer.render(scene, camera);
     }
